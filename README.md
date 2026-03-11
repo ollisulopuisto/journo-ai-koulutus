@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Journo AI-koulutus: Webinaarin tarkistuslista
 
-# Run and deploy your AI Studio app
+Tämä on yksinkertainen ja helppokäyttöinen selainsovellus webinaarin osallistujille. Sen avulla osallistujat voivat seurata omaa oppimistaan, reflektoida webinaarin antia ja antaa palautetta järjestäjälle.
 
-This contains everything you need to run your app locally.
+👉 **[Kokeile sovellusta tästä!](https://ollisulopuisto.github.io/journo-ai-koulutus/)**
 
-View your app in AI Studio: https://ai.studio/apps/19a2bf16-0f8e-4460-9b48-bb96271a6a9d
+## Miten sovellus toimii?
 
-## Run Locally
+1. **Kirjautuminen:** Käyttäjä syöttää nimensä aloittaakseen.
+2. **Tarkistuslista:** Käyttäjä käy läpi oppimistavoitteet ja merkitsee ne asiat, jotka hän kokee oppineensa. Edistymispalkki näyttää visuaalisesti, kuinka suuri osa tavoitteista on saavutettu.
+3. **Palaute:** Käyttäjä voi kirjoittaa vapaamuotoista palautetta webinaarista.
+4. **Raportointi:** Lopuksi käyttäjä voi kopioida yhteenvedon oppimisestaan ja palautteestaan leikepöydälle tai avata sen suoraan sähköpostiohjelmaansa lähettämistä varten.
 
-**Prerequisites:**  Node.js
+### Ominaisuudet
+* **Tietosuoja:** Sovellus toimii täysin selaimessa. Mitään tietoja ei lähetetä ulkopuolisille palvelimille, vaan kaikki tallentuu ainoastaan käyttäjän oman selaimen paikalliseen muistiin (`localStorage`).
+* **Automaattinen tallennus:** Edistyminen tallentuu selaimeen, joten sivun voi päivittää tai sulkea menettämättä tietoja.
+* **Responsiivinen:** Toimii saumattomasti niin puhelimella kuin tietokoneellakin.
 
+## Tekniset tiedot
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Tämä projekti on luotu modernilla web-teknologiapinolla:
+* **React** (Käyttöliittymäkirjasto)
+* **Vite** (Nopea kehitystyökalu ja kääntäjä)
+* **Tailwind CSS** (Tyylittely)
+* **Lucide React** (Ikonit)
+* **Framer Motion** (Animaatiot)
+
+Sovellus on julkaistu automaattisesti **GitHub Pages** -palveluun hyödyntäen GitHub Actions -työnkulkua.

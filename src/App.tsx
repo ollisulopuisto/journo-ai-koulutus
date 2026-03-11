@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle2, Circle, Copy, Mail, Check, Award, Save, LogOut, User } from 'lucide-react';
+import { CheckCircle2, Circle, Copy, Mail, Check, Award, Save, LogOut, User, Settings, Plus, Trash2, ArrowLeft, Link as LinkIcon } from 'lucide-react';
 
 interface ChecklistItem {
   id: string;
@@ -8,40 +8,89 @@ interface ChecklistItem {
   checked: boolean;
 }
 
-const defaultItems: ChecklistItem[] = [
-  { id: '1', text: 'Ymmärrän webinaarin pääteeman ja tavoitteet.', checked: false },
-  { id: '2', text: 'Tunnistan tärkeimmät käsitteet ja termit.', checked: false },
-  { id: '3', text: 'Osaan soveltaa oppimaani omassa työssäni tai arjessani.', checked: false },
-  { id: '4', text: 'Tiedän, mistä löydän lisämateriaalia ja tukea.', checked: false },
-  { id: '5', text: 'Pystyn jakamaan oppimani asiat muille.', checked: false },
+const defaultQuestions = [
+  'Ymmärrän webinaarin pääteeman ja tavoitteet.',
+  'Tunnistan tärkeimmät käsitteet ja termit.',
+  'Osaan soveltaa oppimaani omassa työssäni tai arjessani.',
+  'Tiedän, mistä löydän lisämateriaalia ja tukea.',
+  'Pystyn jakamaan oppimani asiat muille.'
 ];
 
-const STORAGE_KEY = 'webinar_checklist_data';
+const encodeData = (data: string[]) => {
+  return btoa(encodeURIComponent(JSON.stringify(data)));
+};
+
+const decodeData = (encoded: string): string[] | null => {
+  try {
+    return JSON.parse(decodeURIComponent(atob(encoded)));
+  } catch (e) {
+    return null;
+  }
+};
 
 export default function App() {
   const [userName, setUserName] = useState('');
   const [hasStarted, setHasStarted] = useState(false);
-  const [items, setItems] = useState<ChecklistItem[]>(defaultItems);
+  const [items, setItems] = useState<ChecklistItem[]>([]);
   const [feedback, setFeedback] = useState('');
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // Admin state
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [adminQuestions, setAdminQuestions] = useState<string[]>(defaultQuestions);
+  const [generatedUrl, setGeneratedUrl] = useState('');
+  const [urlCopied, setUrlCopied] = useState(false);
+
+  const [storageKey, setStorageKey] = useState('webinar_checklist_default');
 
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    
+    let initialQuestions = defaultQuestions;
+    let currentStorageKey = 'webinar_checklist_default';
+
+    if (q) {
+      const decoded = decodeData(q);
+      if (decoded && Array.isArray(decoded)) {
+        initialQuestions = decoded;
+        // Create a unique storage key for this specific questionnaire
+        currentStorageKey = 'webinar_checklist_' + q.substring(0, 20);
+      }
+    }
+    
+    setStorageKey(currentStorageKey);
+
+    const initialItems = initialQuestions.map((text, index) => ({
+      id: index.toString(),
+      text,
+      checked: false
+    }));
+
+    const savedData = localStorage.getItem(currentStorageKey);
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
         if (parsed.userName) {
           setUserName(parsed.userName);
-          setItems(parsed.items || defaultItems);
+          // Merge saved checked state with current questions
+          const mergedItems = initialItems.map(item => {
+            const savedItem = parsed.items?.find((i: ChecklistItem) => i.id === item.id && i.text === item.text);
+            return savedItem ? { ...item, checked: savedItem.checked } : item;
+          });
+          setItems(mergedItems);
           setFeedback(parsed.feedback || '');
           setHasStarted(true);
+          return;
         }
       } catch (e) {
         console.error("Failed to parse local storage", e);
       }
     }
+    
+    setItems(initialItems);
   }, []);
 
   const handleStart = (e: React.FormEvent) => {
@@ -53,7 +102,7 @@ export default function App() {
   };
 
   const saveData = (name: string, currentItems: ChecklistItem[], currentFeedback: string) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    localStorage.setItem(storageKey, JSON.stringify({
       userName: name,
       items: currentItems,
       feedback: currentFeedback
@@ -69,10 +118,11 @@ export default function App() {
   const confirmLogout = () => {
     setHasStarted(false);
     setUserName('');
-    setItems(defaultItems);
+    // Reset items to unchecked
+    setItems(items.map(i => ({ ...i, checked: false })));
     setFeedback('');
     setShowLogoutConfirm(false);
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey);
   };
 
   const toggleItem = (id: string) => {
@@ -82,7 +132,7 @@ export default function App() {
   };
 
   const checkedCount = items.filter(i => i.checked).length;
-  const progress = (checkedCount / items.length) * 100;
+  const progress = items.length > 0 ? (checkedCount / items.length) * 100 : 0;
 
   const generateReport = () => {
     const checkedItemsText = items.filter(i => i.checked).map(i => `✅ ${i.text}`).join('\n');
@@ -107,9 +157,146 @@ export default function App() {
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
+  // Admin functions
+  const addAdminQuestion = () => {
+    setAdminQuestions([...adminQuestions, '']);
+  };
+
+  const updateAdminQuestion = (index: number, value: string) => {
+    const newQs = [...adminQuestions];
+    newQs[index] = value;
+    setAdminQuestions(newQs);
+  };
+
+  const removeAdminQuestion = (index: number) => {
+    const newQs = adminQuestions.filter((_, i) => i !== index);
+    setAdminQuestions(newQs);
+  };
+
+  const generateUrl = () => {
+    const validQuestions = adminQuestions.filter(q => q.trim() !== '');
+    if (validQuestions.length === 0) return;
+    
+    const encoded = encodeData(validQuestions);
+    const url = `${window.location.origin}${window.location.pathname}?q=${encoded}`;
+    setGeneratedUrl(url);
+    setUrlCopied(false);
+  };
+
+  const copyGeneratedUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedUrl);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy URL: ', err);
+    }
+  };
+
+  if (isAdminMode) {
+    return (
+      <div className="min-h-screen bg-stone-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <button 
+            onClick={() => setIsAdminMode(false)}
+            className="flex items-center text-stone-500 hover:text-stone-800 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Palaa takaisin
+          </button>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200"
+          >
+            <div className="bg-stone-800 px-8 py-8 text-white">
+              <div className="flex items-center mb-2">
+                <Settings className="w-6 h-6 mr-3 text-stone-300" />
+                <h1 className="text-2xl font-bold tracking-tight">Luo räätälöity kysely</h1>
+              </div>
+              <p className="text-stone-300">
+                Määritä omat oppimistavoitteet tai kysymykset. Kun olet valmis, luo linkki ja jaa se osallistujille.
+              </p>
+            </div>
+            
+            <div className="p-8">
+              <div className="space-y-4 mb-8">
+                {adminQuestions.map((q, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="flex-grow">
+                      <input
+                        type="text"
+                        value={q}
+                        onChange={(e) => updateAdminQuestion(index, e.target.value)}
+                        placeholder={`Kysymys ${index + 1}`}
+                        className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:ring-stone-500 focus:border-stone-500 transition-colors outline-none"
+                      />
+                    </div>
+                    <button
+                      onClick={() => removeAdminQuestion(index)}
+                      className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors border-2 border-transparent hover:border-red-100"
+                      title="Poista kysymys"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <button
+                onClick={addAdminQuestion}
+                className="flex items-center text-stone-600 hover:text-stone-900 font-medium mb-8 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-1" />
+                Lisää uusi kysymys
+              </button>
+              
+              <div className="border-t border-stone-200 pt-8">
+                <button
+                  onClick={generateUrl}
+                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-stone-800 hover:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-stone-900 transition-colors"
+                >
+                  <LinkIcon className="w-5 h-5 mr-2" />
+                  Luo jaettava linkki
+                </button>
+                
+                {generatedUrl && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-6 bg-stone-50 p-6 rounded-2xl border border-stone-200"
+                  >
+                    <p className="text-sm font-medium text-stone-700 mb-2">Kopioi tämä linkki osallistujille:</p>
+                    <div className="flex gap-3">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={generatedUrl}
+                        className="flex-grow px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-600 outline-none"
+                        onClick={(e) => e.currentTarget.select()}
+                      />
+                      <button
+                        onClick={copyGeneratedUrl}
+                        className="flex-shrink-0 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                      >
+                        {urlCopied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                        {urlCopied ? 'Kopioitu' : 'Kopioi'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   if (!hasStarted) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -160,6 +347,14 @@ export default function App() {
             </form>
           </div>
         </motion.div>
+        
+        <button 
+          onClick={() => setIsAdminMode(true)}
+          className="mt-8 flex items-center text-sm text-stone-400 hover:text-stone-600 transition-colors"
+        >
+          <Settings className="w-4 h-4 mr-1" />
+          Ylläpitäjä: Luo räätälöity kysely
+        </button>
       </div>
     );
   }
