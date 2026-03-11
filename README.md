@@ -1,4 +1,4 @@
-# Journo AI-koulutus: Webinaarin tarkistuslista
+# Tee se itse! -webinaarin harjoitussovellus: Checklist
 
 Tämä on yksinkertainen ja helppokäyttöinen selainsovellus webinaarin osallistujille. Sen avulla osallistujat voivat seurata omaa oppimistaan, reflektoida webinaarin antia ja antaa palautetta järjestäjälle.
 
